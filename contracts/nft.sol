@@ -97,7 +97,7 @@ contract PetGacha is ERC721, Ownable {
             _rank == _tokenIdToPet[tokenId2_].rank,
             "PetGacha: must same rank"
         );
-        require(_rank < 3, "PetGacha: Pets is at the highest rank");
+        require(_rank < 3, "PetGacha: pet is at the highest rank");
         uint8 _newRank = _rank + 1;
         _burn(tokenId1_);
         _burn(tokenId2_);
