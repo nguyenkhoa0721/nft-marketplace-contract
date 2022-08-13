@@ -92,7 +92,7 @@ contract Marketplace is Ownable {
     {
         _updateFeeRate(feeDecimal_, feeRate_);
     }
-    
+
     function addPaymentToken(address paymentToken_) external onlyOwner {
         require(
             paymentToken_ != address(0),
@@ -104,16 +104,16 @@ contract Marketplace is Ownable {
         );
         _supportedPaymentTokens.add(paymentToken_);
     }
-    
+
     //ulti
     function _calculateFee(uint256 orderId_) private view returns (uint256) {
-        Order memory _order = orders[orderId_];
+        Order storage _order = orders[orderId_];
         if (feeRate == 0) {
             return 0;
         }
         return (feeRate * _order.price) / 10**(feeDecimal + 2);
     }
-    
+
     function isSeller(uint256 orderId_, address seller_)
         public
         view
@@ -121,12 +121,104 @@ contract Marketplace is Ownable {
     {
         return orders[orderId_].seller == seller_;
     }
-    
+
     function isPaymentSupported(address paymentToken_)
         public
         view
         returns (bool)
     {
         return _supportedPaymentTokens.contains(paymentToken_);
-    }   
+    }
+
+    modifier onlySupportedPaymentToken(address paymentToken_) {
+        require(
+            isPaymentSupported(paymentToken_),
+            "NFTMarketplace: paymentToken_ is not supported"
+        );
+        _;
+    }
+
+    //orders
+    function addOrder(
+        uint256 tokenId_,
+        address paymentToken_,
+        uint256 price_
+    ) public onlySupportedPaymentToken(paymentToken_) {
+        require(
+            nftContract.ownerOf(tokenId_) == _msgSender(),
+            "NFTMarketplace: sender is not owner of token"
+        );
+        require(
+            nftContract.getApproved(tokenId_) == address(this) ||
+                nftContract.isApprovedForAll(_msgSender(), address(this)),
+            "NFTMarketplace: The contract is unauthorized to manage this token"
+        );
+        require(price_ > 0, "NFTMarketplace: price must be greater than 0");
+        uint256 _orderId = _orderIdCount.current();
+        orders[_orderId] = Order(
+            _msgSender(),
+            address(0),
+            tokenId_,
+            paymentToken_,
+            price_
+        );
+        _orderIdCount.increment();
+        nftContract.transferFrom(_msgSender(), address(this), tokenId_);
+        emit OrderAdded(
+            _orderId,
+            _msgSender(),
+            tokenId_,
+            paymentToken_,
+            price_
+        );
+    }
+
+    function cancelOrder(uint256 orderId_) external {
+        Order storage order = orders[orderId_];
+        require(order.seller == _msgSender(), "NFTMarketplace: must be seller");
+        require(
+            order.buyer == address(0),
+            "NFTMarketplace: buyer must be zero"
+        );
+        uint256 _tokenId = order.tokenId;
+        delete orders[orderId_];
+        nftContract.transferFrom(address(this), _msgSender(), _tokenId);
+        emit OrderCancelled(orderId_);
+    }
+
+    function executeOrder(uint256 orderId_) external {
+        Order storage order = orders[orderId_];
+        require(order.price > 0, "NFTMarketplace: order has been cancel");
+        require(
+            order.buyer != order.seller,
+            "NFTMarketplace: buyer must not be seller"
+        );
+        require(
+            order.buyer != address(0),
+            "NFTMarketplace: buyer must not be zero"
+        );
+        order.buyer = _msgSender();
+        uint256 _fee = _calculateFee(orderId_);
+        if (_fee > 0) {
+            IERC20(order.paymentToken).transferFrom(
+                _msgSender(),
+                feeRecipient,
+                _fee
+            );
+        }
+        IERC20(order.paymentToken).transferFrom(
+            _msgSender(),
+            order.seller,
+            order.price - _fee
+        );
+        nftContract.transferFrom(address(this), _msgSender(), order.tokenId);
+        emit OrderMatched(
+            orderId_,
+            order.seller,
+            order.buyer,
+            order.tokenId,
+            order.paymentToken,
+            order.price
+        );
+    }
 }
