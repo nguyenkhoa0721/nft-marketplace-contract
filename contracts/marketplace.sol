@@ -100,7 +100,7 @@ contract Marketplace is Ownable {
         );
         require(
             !_supportedPaymentTokens.contains(paymentToken_),
-            "NFTMarketplace: paymentToken_ is not supported"
+            "NFTMarketplace: paymentToken_ is already supported"
         );
         _supportedPaymentTokens.add(paymentToken_);
     }
@@ -122,7 +122,7 @@ contract Marketplace is Ownable {
         return orders[orderId_].seller == seller_;
     }
 
-    function isPaymentSupported(address paymentToken_)
+    function isPaymentTokenSupported(address paymentToken_)
         public
         view
         returns (bool)
@@ -132,7 +132,7 @@ contract Marketplace is Ownable {
 
     modifier onlySupportedPaymentToken(address paymentToken_) {
         require(
-            isPaymentSupported(paymentToken_),
+            isPaymentTokenSupported(paymentToken_),
             "NFTMarketplace: paymentToken_ is not supported"
         );
         _;
