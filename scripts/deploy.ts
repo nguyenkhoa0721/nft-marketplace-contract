@@ -36,3 +36,7 @@ main().catch((error) => {
     console.error(error);
     process.exitCode = 1;
 });
+
+// Gold deployed to 0x8D39cEc3A743dA1DfA12A79cE57262D66710b64b
+// Pet deployed to 0x8c6dcDa84b0F4D27Cb14D45bA9A90b8C8D04D565
+// Marketplace deployed to 0x7A36eAd9008434D4f1AA4dF6445D1179D2a0Afa0
